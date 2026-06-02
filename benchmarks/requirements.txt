@@ -1,0 +1,4 @@
+locust==2.29.0
+pandas==2.2.2
+matplotlib==3.9.0
+requests==2.32.3
