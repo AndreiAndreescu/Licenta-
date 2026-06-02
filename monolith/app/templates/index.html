@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <div class="hero-eyebrow">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 1l1.85 3.75L14 5.5l-3 2.92.71 4.13L8 10.5l-3.71 1.95L5 8.42 2 5.5l4.15-.75L8 1z"/>
+    </svg>
+    NLP-Powered Fact Verification
+  </div>
+
+  <h1 class="hero-title">
+    Is it <span class="highlight">True</span> or <span class="highlight-false">False</span>?
+  </h1>
+  <p class="hero-sub">
+    Type any claim and we'll search the web, analyze the evidence, and give you a verdict with confidence score.
+  </p>
+
+  <form id="verify-form" class="search-box">
+    <input
+      type="text"
+      id="claim-input"
+      class="search-input"
+      placeholder="e.g. Romania is a member of the European Union"
+      required
+      autocomplete="off"
+    />
+    <button type="submit" class="search-btn" id="submit-btn">
+      <span id="btn-text">Verify Claim</span>
+      <svg id="btn-spinner" class="spin-svg hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+    </button>
+  </form>
+
+  <div id="error-msg" class="error-msg hidden"></div>
+
+  <div class="how-section">
+    <div class="how-title">How it works</div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="step-num-badge">1</div>
+        <div class="step-icon-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div class="step-label">Web Search</div>
+        <div class="step-desc">Finds the most relevant pages for your claim across the web.</div>
+      </div>
+      <div class="how-step">
+        <div class="step-num-badge">2</div>
+        <div class="step-icon-wrap">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="step-label">NLP Analysis</div>
+        <div class="step-desc">Extracts keywords, sentiment and summaries from each page.</div>
+      </div>
+      <div class="how-step">
+        <div class="step-num-badge">3</div>
+        <div class="step-icon-wrap">
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <div class="step-label">Verdict</div>
+        <div class="step-desc">Aggregates evidence into a TRUE/FALSE verdict with confidence %.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('verify-form');
+const input = document.getElementById('claim-input');
+const btn = document.getElementById('submit-btn');
+const btnText = document.getElementById('btn-text');
+const spinner = document.getElementById('btn-spinner');
+const errorMsg = document.getElementById('error-msg');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const claim = input.value.trim();
+  if (!claim) return;
+
+  btn.disabled = true;
+  btnText.textContent = 'Verifying...';
+  spinner.classList.remove('hidden');
+  errorMsg.classList.add('hidden');
+
+  try {
+    const resp = await fetch('/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: claim, max_depth: 1, max_pages: 10, seed_urls: [] }),
+    });
+    if (!resp.ok) throw new Error('Verification request failed');
+    const job = await resp.json();
+    window.location.href = '/result/' + job.id;
+  } catch (err) {
+    errorMsg.textContent = err.message || 'Something went wrong. Please try again.';
+    errorMsg.classList.remove('hidden');
+    btn.disabled = false;
+    btnText.textContent = 'Verify Claim';
+    spinner.classList.add('hidden');
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="result-page">
+
+  <!-- Claim -->
+  <div class="claim-box">
+    <div class="claim-main">
+      <div class="claim-label">Claim being verified</div>
+      <div class="claim-text">"{{ job.query }}"</div>
+    </div>
+    <a href="/" class="back-btn">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      New claim
+    </a>
+  </div>
+
+  <!-- Verdict -->
+  {% if job.status == 'done' and job.verdict %}
+    {% set vc = job.verdict | lower %}
+    <div class="verdict-card verdict-{{ vc }}">
+      <div class="verdict-icon-box">
+        {% if job.verdict == 'TRUE' %}
+          <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% elif job.verdict == 'FALSE' %}
+          <svg viewBox="0 0 24 24"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% else %}
+          <svg viewBox="0 0 24 24"><path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% endif %}
+      </div>
+      <div class="verdict-body">
+        <div class="verdict-label">{{ job.verdict }}</div>
+        <div class="verdict-sub">Based on {{ job.pages_analyzed }} analyzed sources</div>
+        <div class="conf-wrap">
+          <div class="conf-track">
+            <div class="conf-fill" style="width:{{ job.verdict_confidence }}%"></div>
+          </div>
+          <div class="conf-pct">{{ job.verdict_confidence }}%</div>
+        </div>
+        {% if job.verdict_evidence %}
+        <div class="verdict-evidence">{{ job.verdict_evidence }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+  {% elif job.status == 'running' or job.status == 'pending' %}
+    <div class="verdict-card verdict-pending" id="pending-card">
+      <div class="verdict-icon-box">
+        <svg class="spin-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+      </div>
+      <div class="verdict-body">
+        <div class="verdict-label">Analyzing...</div>
+        <div class="verdict-sub">Crawling the web for evidence</div>
+        <div class="progress-track">
+          <div class="progress-fill" id="prog-bar" style="width:0%"></div>
+        </div>
+        <div class="progress-text" id="prog-text">Starting up...</div>
+      </div>
+    </div>
+
+  {% elif job.status == 'failed' %}
+    <div class="verdict-card verdict-uncertain">
+      <div class="verdict-icon-box">
+        <svg viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <div class="verdict-body">
+        <div class="verdict-label">Failed</div>
+        <div class="verdict-evidence">{{ job.error_message or 'An error occurred during analysis.' }}</div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Sources -->
+  {% if sources %}
+  <div class="sources-section">
+    <div class="sources-header">
+      <div class="sources-title">Evidence Sources</div>
+      <span class="sources-count">{{ sources | length }} pages</span>
+    </div>
+    <div class="sources-grid">
+      {% for src in sources %}
+      <div class="source-card sent-{{ src.sentiment }}">
+        <div class="source-header">
+          <a href="{{ src.url }}" target="_blank" class="source-title">{{ src.title[:80] }}</a>
+          <span class="sentiment-chip sentiment-{{ src.sentiment }}">{{ src.sentiment }}</span>
+        </div>
+        {% if src.summary %}
+        <div class="source-summary">{{ src.summary[:200] }}</div>
+        {% endif %}
+        {% if src.keywords %}
+        <div class="source-keywords">
+          {% for kw in src.keywords %}<span class="kw-pill">{{ kw }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% if job.status == 'running' or job.status == 'pending' %}
+<script>
+const jobId = {{ job.id }};
+async function poll() {
+  try {
+    const r = await fetch('/api/jobs/' + jobId + '/progress');
+    if (!r.ok) return;
+    const d = await r.json();
+    const bar = document.getElementById('prog-bar');
+    const txt = document.getElementById('prog-text');
+    if (bar) bar.style.width = d.progress_pct + '%';
+    if (txt) txt.textContent = 'Pages crawled: ' + d.pages_crawled + ' — Analyzed: ' + d.pages_analyzed;
+    if (d.status === 'done' || d.status === 'failed') window.location.reload();
+  } catch(e) {}
+}
+setInterval(poll, 2500);
+poll();
+</script>
+{% endif %}
+{% endblock %}

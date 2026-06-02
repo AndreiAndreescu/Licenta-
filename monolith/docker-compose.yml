@@ -1,0 +1,10 @@
+services:
+  monolith:
+    build: .
+    ports:
+      - 8006:8000
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env.example
+    restart: unless-stopped
