@@ -1,0 +1,122 @@
+{
+  "id": null,
+  "uid": "webintel-dashboard",
+  "title": "WebIntel Monitoring",
+  "schemaVersion": 36,
+  "version": 1,
+  "tags": ["webintel"],
+  "timezone": "browser",
+  "editable": true,
+  "style": "dark",
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "type": "graph",
+      "title": "Request Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total[1m])",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "id": 1
+    },
+    {
+      "id": 2,
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "type": "graph",
+      "title": "P95 Latency",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "id": 3,
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "type": "graph",
+      "title": "Error Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "id": 4,
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "type": "stat",
+      "title": "Active Jobs",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "webintel_active_jobs",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "type": "graph",
+      "title": "Pages Crawled/min",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{handler=\"/jobs/{job_id}/pages\",method=\"POST\"}[1m])",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "id": 6,
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "type": "graph",
+      "title": "Redis Stream Lag",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "redis_stream_length",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "description": "Placeholder metric for Redis stream lag. Requires redis-exporter custom metrics on top of the default exporter."
+    }
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "refresh": "10s"
+}

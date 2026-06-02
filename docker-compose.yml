@@ -1,0 +1,200 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: webintel
+      POSTGRES_PASSWORD: webintel
+      POSTGRES_DB: webintel
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webintel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webintel_network
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webintel_network
+
+  storage:
+    build:
+      context: .
+      dockerfile: services/storage/Dockerfile
+    env_file:
+      - ./services/storage/.env.example
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - webintel_network
+
+  crawler:
+    build:
+      context: .
+      dockerfile: services/crawler/Dockerfile
+    ports:
+      - "8002:8002"
+    env_file:
+      - services/crawler/.env.example
+    depends_on:
+      redis:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  extractor:
+    build:
+      context: .
+      dockerfile: services/extractor/Dockerfile
+    ports:
+      - "8003:8003"
+    env_file:
+      - services/extractor/.env.example
+    depends_on:
+      redis:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  nlp:
+    build:
+      context: .
+      dockerfile: services/nlp/Dockerfile
+    ports:
+      - "8004:8004"
+    env_file:
+      - services/nlp/.env.example
+    depends_on:
+      redis:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: services/scheduler/Dockerfile
+    ports:
+      - "8005:8005"
+    env_file:
+      - services/scheduler/.env.example
+    depends_on:
+      redis:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - services/gateway/.env.example
+    depends_on:
+      scheduler:
+        condition: service_started
+      storage:
+        condition: service_started
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: services/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gateway
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    ports:
+      - "9090:9090"
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=webintel
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      - DATA_SOURCE_NAME=postgresql://webintel:webintel@postgres:5432/webintel?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - webintel_network
+    restart: unless-stopped
+
+volumes:
+  postgres-data: {}
+  prometheus-data: {}
+  grafana-data: {}
+
+networks:
+  webintel_network:
+    driver: bridge

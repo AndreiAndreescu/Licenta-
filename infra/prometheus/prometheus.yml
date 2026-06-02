@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:8000']
+    metrics_path: /metrics
+  - job_name: 'storage'
+    static_configs:
+      - targets: ['storage:8001']
+    metrics_path: /metrics
+  - job_name: 'crawler'
+    static_configs:
+      - targets: ['crawler:8002']
+    metrics_path: /metrics
+  - job_name: 'extractor'
+    static_configs:
+      - targets: ['extractor:8003']
+    metrics_path: /metrics
+  - job_name: 'nlp'
+    static_configs:
+      - targets: ['nlp:8004']
+    metrics_path: /metrics
+  - job_name: 'scheduler'
+    static_configs:
+      - targets: ['scheduler:8005']
+    metrics_path: /metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
